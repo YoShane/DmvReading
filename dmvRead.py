@@ -12,11 +12,16 @@ import os
 dmvLocation = FunctionGroup.dmvCityLocation()
 currentLat = '0' #區域代號
 currentSat = '0' #監理站代號
-endDate = '2019-09-06'
+endDate = '2019-08-29'
 global d1
 global refreshCount
+global sendCount
+global hasReg
 d1 = datetime.datetime(2019,8,19)
 refreshCount = 0
+sendCount = 0
+hasReg = False
+requests.adapters.DEFAULT_RETRIES = 5
 
 print("歡迎進入系統，請選擇監理站區域")
 for i in range(len(dmvLocation)):
@@ -58,8 +63,12 @@ while(FunctionGroup.checkStaExist(dmvList,currentSat) == 'null'):
 def runReading():
     global d1
     global refreshCount
+    global sendCount
+    global hasReg
     refreshCount = refreshCount + 1
     print("Loading...") #讀取報名狀態
+    res = requests.session()
+    res.keep_alive = False #關閉多餘連線
     res = requests.post("https://www.mvdis.gov.tw/m3-emv-trn/exm/locations",
                         headers=FunctionGroup.getStateHeader(), data=FunctionGroup.getRawData('query',FunctionGroup.getDate(),currentLat,currentSat))
     #print(res.request.headers) # 看requests送出的header
@@ -109,18 +118,31 @@ def runReading():
         print(output_date)
         print("Total:", output_date.size)
 
+        if not hasReg:
+            hasReg = True
+            date = empty_people.iloc[0,0].strftime("%Y-%m-%d") #取得第一個的日期
+            sec = '1'
+            if("下午" in empty_people.iloc[0,1]):
+                sec = '2'
+            print("嘗試報名中")
+            sat = str(currentSat)
+            div = '3'
+            requests.post("https://www.mvdis.gov.tw/m3-emv-trn/exm/signUp",
+                        headers=FunctionGroup.getAddHeader(), data=FunctionGroup.getAddData(date,sat,div,sec))
+            print(FunctionGroup.getAddData(date,sat,div,sec))
+            
         d2 = datetime.datetime.now()
         interval = d2 - d1
         sec = interval.days*24*3600 + interval.seconds
-        if(sec >= 1800): #超過時間可以再記一次信
+        if(sec >= 600): #超過時間可以再記一次信
             print('Email start!')
-            sendW = "以下為可報名日期，請及時前往預約\n"+str(output_date)
+            sendW = '以下為可報名日期，請及時前往預約\nhttps://www.mvdis.gov.tw/m3-emv-trn/exm/locations\n'+str(output_date)
             gmail_user = 'alice4717@sshs.tc.edu.tw'
             gmail_password = 'Stuserver4717' # your gmail password
             msg = MIMEText(sendW)
             msg['Subject'] = '機車考照預約有名額囉'
             msg['From'] = gmail_user
-            msg['To'] = 'yoga87111212@gmail.com'
+            msg['To'] = 'C107134123@nkust.edu.tw'
             server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
             server.ehlo()
             server.login(gmail_user, gmail_password)
@@ -128,6 +150,7 @@ def runReading():
             server.quit()
             print('Email sent!')
             d1 = datetime.datetime.now()
+            sendCount = sendCount + 1
 
     else:
         print(first_test)
@@ -135,6 +158,8 @@ def runReading():
         print("以上為目前狀態"+"(更新次數:"+str(refreshCount)+")")
         print("X 尚未釋出報名名額")
 
+    if(sendCount != 0):
+        print("傳送次數:"+str(sendCount))
     threading.Timer(30, runReading).start()
 
 runReading()
