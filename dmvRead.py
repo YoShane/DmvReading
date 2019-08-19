@@ -3,6 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from CustomTools import FunctionGroup
 import time
+import threading
 import datetime
 import smtplib
 from email.mime.text import MIMEText
@@ -12,6 +13,8 @@ dmvLocation = FunctionGroup.dmvCityLocation()
 currentLat = '0' #區域代號
 currentSat = '0' #監理站代號
 endDate = '2019-09-06'
+global d1
+global refreshCount
 d1 = datetime.datetime(2019,8,19)
 refreshCount = 0
 
@@ -50,9 +53,12 @@ for i in dmvList:
     tmpW = i.split(",")
     print("　"+tmpW[0]+" ->"+tmpW[1])
 while(FunctionGroup.checkStaExist(dmvList,currentSat) == 'null'):
-    currentSat = input("輸入監理站代號: ") 
+    currentSat = input("輸入監理站代號: ")
 
-while True:
+def runReading():
+    global d1
+    global refreshCount
+    refreshCount = refreshCount + 1
     print("Loading...") #讀取報名狀態
     res = requests.post("https://www.mvdis.gov.tw/m3-emv-trn/exm/locations",
                         headers=FunctionGroup.getStateHeader(), data=FunctionGroup.getRawData('query',FunctionGroup.getDate(),currentLat,currentSat))
@@ -85,6 +91,7 @@ while True:
     total_data['date'] = total_data['date'].str.replace(')',"")
 
     total_data['date'] = pd.to_datetime(total_data['date']) #將資料型別轉換為日期型別
+    total_data['people'] = total_data['people'].astype(str) #將人數轉字串
     mask = total_data['date'] <= endDate #篩選時間存入遮罩
     total_data = total_data.loc[mask] #扣除false的內容
 
@@ -128,5 +135,6 @@ while True:
         print("以上為目前狀態"+"(更新次數:"+str(refreshCount)+")")
         print("X 尚未釋出報名名額")
 
-    refreshCount = refreshCount + 1
-    time.sleep(30)
+    threading.Timer(30, runReading).start()
+
+runReading()
