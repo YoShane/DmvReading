@@ -119,6 +119,7 @@ def runReading():
         print("Total:", output_date.size)
 
         if not hasReg:
+            #目前預約報名 身分證=L225072148 生日=0900808
             hasReg = True
             date = empty_people.iloc[0,0].strftime("%Y-%m-%d") #取得第一個的日期
             sec = '1'
@@ -137,12 +138,12 @@ def runReading():
         if(sec >= 600): #超過時間可以再記一次信
             print('Email start!')
             sendW = '以下為可報名日期，請及時前往預約\nhttps://www.mvdis.gov.tw/m3-emv-trn/exm/locations\n'+str(output_date)
-            gmail_user = 'alice4717@sshs.tc.edu.tw'
-            gmail_password = 'Stuserver4717' # your gmail password
+            gmail_user = '寄信@email'
+            gmail_password = '寄信密碼' # your gmail password
             msg = MIMEText(sendW)
             msg['Subject'] = '機車考照預約有名額囉'
             msg['From'] = gmail_user
-            msg['To'] = 'C107134123@nkust.edu.tw'
+            msg['To'] = '收信人@email'
             server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
             server.ehlo()
             server.login(gmail_user, gmail_password)
